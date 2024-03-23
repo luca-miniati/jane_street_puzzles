@@ -1,4 +1,4 @@
-#include <fstream>
+#include <iostream>
 #include <utility>
 #include <string>
 #include <chrono>
@@ -6,9 +6,10 @@
 #include <cstdint>
 using namespace std;
 using u64 = unsigned long long int;
-using grid = pair<u64, u64>;
+using bitboard = pair<u64, u64>;
+using state = bitboard[9];
 
-ofstream fout("hooks.out");
+// ofstream cout("hooks.out");
 int combos = 0;
 auto start = chrono::steady_clock::now();
 
@@ -25,42 +26,84 @@ const u64 hooks[n][4][2] = {
     {{9241421688590304255ull, 256ull}, {4620710844295152127ull, 65664ull}, {9241421688590303745ull, 130816ull}, {4620710844295151872ull, 130944ull}},
 };
 
-void print_grid(grid &grid, string val) {
-    fout << endl;
+void print_bitboard(bitboard &bb, string val) {
+    cout << endl;
 
-    // first 64 bits of grid
+    // first 64 bits of bitboard
     for (int i = 0; i < 64; i++) {
         if ((i % 9) == 0)
-            fout << "  ";
+            cout << "  ";
 
-        if (grid.first & (1ull << i)) {
-            fout << val << " ";
+        if (bb.first & (1ull << i)) {
+            cout << val << " ";
         } else {
-            fout << ". ";
+            cout << ". ";
         }
 
         if ((i % 9) == 8)
-            fout << endl;
+            cout << endl;
     }
 
-    // last 17 bits of grid
+    // last 17 bits of bitboard
     for (int i = 0; i < 17; i++) {
         if ((i % 9) == 8)
-            fout << "  ";
+            cout << "  ";
 
-        if (grid.second & (1ull << i)) {
-            fout << val << " ";
+        if (bb.second & (1ull << i)) {
+            cout << val << " ";
         } else {
-            fout << ". ";
+            cout << ". ";
         }
 
         if ((i % 9) == 7)
-            fout << endl;
+            cout << endl;
     }
 
-    fout << "first: " << grid.first << endl;
-    fout << "second: " << grid.second << endl;
-    fout << endl;
+    cout << "first: " << bb.first << endl;
+    cout << "second: " << bb.second << endl;
+    cout << endl;
+}
+
+void print_state(state &s) {
+    cout << endl;
+
+    // first 64 bits of bitboard
+    for (int i = 0; i < 64; i++) {
+        if ((i % 9) == 0)
+            cout << "  ";
+
+        bool found = false;
+        for (int j = 0; j < 9; j++) {
+            if (s[j].first & (1ull << i)) {
+                cout << j + 1 << " ";
+                found = true;
+            }
+        }
+        if (!found)
+            cout << ". ";
+
+        if ((i % 9) == 8)
+            cout << endl;
+    }
+
+    // last 17 bits of bitboard
+    for (int i = 0; i < 17; i++) {
+        if ((i % 9) == 8)
+            cout << "  ";
+
+        bool found = false;
+        for (int j = 0; j < 9; j++) {
+            if (s[j].second & (1ull << i)) {
+                cout << j + 1 << " ";
+                found = true;
+            }
+        }
+        if (!found)
+            cout << ". ";
+
+        if ((i % 9) == 7)
+            cout << endl;
+    }
 }
 
 int msb(u64 n) {
@@ -86,91 +129,84 @@ int bitstring_length(u64 n) {
     return length;
 }
 
-void set_bits(grid &grid, u64 first, u64 second, int shift) {
-    grid.first |= first << shift;
-    // if we try to shift into index 64 or higher
+void set_bits(bitboard &bb, u64 first, u64 second, int shift) {
+    // if there's no overflow for first
+    if (shift < 64)
+        bb.first |= first << shift;
+    // if we try to shift into index 64 or hibbher
     if ((msb(first) + shift) > 64) {
-        grid.second |= (first >> (64 - shift));
+        cout << (first >> (shift - 64)) << endl;
+        bb.second |= (first >> (64 - shift));
     }
-    grid.second |= second << shift;
+    bb.second |= second << shift;
 }
 
-void unset_bits(grid &grid, u64 first, u64 second, int shift) {
-    grid.first &= ~(first << shift);
-    // if we try to shift into index 64 or higher
+void unset_bits(bitboard &bb, u64 first, u64 second, int shift) {
+    bb.first &= ~(first << shift);
+    // if we try to shift into index 64 or hibbher
     if ((msb(first) + shift) > 64) {
-        grid.second |= (first >> (64 - shift));
+        bb.second &= ~(first >> (64 - shift));
     }
-    grid.second &= ~(second << shift);
+    bb.second &= ~(second << shift);
 }
 
-void set_hook(grid &grid, int x, int y, int hook_size, int rotation) {
+void set_hook(bitboard &bb, int x, int y, int h, int r) {
     set_bits(
-        grid,
-        hooks[hook_size-1][rotation][0],
-        hooks[hook_size-1][rotation][1],
+        bb,
+        hooks[h-1][r][0],
+        hooks[h-1][r][1],
         (y * 9) + x
     );
 }
 
-void unset_hook(grid &grid, int x, int y, int hook_size, int rotation) {
+void unset_hook(bitboard &bb, int x, int y, int h, int r) {
     unset_bits(
-        grid,
-        hooks[hook_size-1][rotation][0],
-        hooks[hook_size-1][rotation][1],
+        bb,
+        hooks[h-1][r][0],
+        hooks[h-1][r][1],
         (y * 9) + x
     );
 }
 
-// bool valid(grid &grid, int x, int y, int hook_size, int rotation) {
-//     if (x + hook_size > n || y + hook_size > n)
-//         return false;
-//
-//     switch (rotation) {
-//         case 0:
-//             for (int i = 0; i < hook_size; i++) {
-//                 if (grid.values[y+i][x] > 0 || grid.values[y][x+i] > 0) return false;
-//             }
-//             break;
-//         case 1:
-//             for (int i = 0; i < hook_size; i++) {
-//                 if (grid.values[y+i][x] > 0 || grid.values[y+hook_size-1][x+i] > 0) return false;
-//             }
-//             break;
-//         case 2:
-//             for (int i = 0; i < hook_size; i++) {
-//                 if (grid.values[y][x+i] > 0 || grid.values[y+i][x+hook_size-1] > 0) return false;
-//             }
-//             break;
-//         case 3:
-//             for (int i = 0; i < hook_size; i++) {
-//                 if (grid.values[y+i][x+hook_size-1] > 0 || grid.values[y+hook_size-1][x+i] > 0) return false;
-//             }
-//             break;
-//     }
-//
-//     return true;
-// }
+bool valid(state &s, int x, int y, int h, int r) {
+    // copy hook onto new bitboard
+    bitboard hook;
 
-// void dfs(grid &grid, int current_hook) {
-//     if (current_hook == 0) {
-//         print_grid(grid);
+    set_hook(hook, x, y, h, r);
+
+    // check bitboards before
+    for (int i = 0; i < h - 1; i++) {
+        if (hook.first & s[i].first || hook.second & s[i].second)
+            return false;
+    }
+    // check bitboards after
+    for (int i = h; i < 9; i++) {
+        if (hook.first & s[i].first || hook.second & s[i].second)
+            return false;
+    }
+
+    return true;
+}
+
+// void dfs(state &s, int h) {
+//     if (h == 0) {
+//         // print_state(s);
 //         combos++;
 //         return;
 //     }
 //
-//     for (int x = 0; x < n - current_hook + 1; x++) {
-//         for (int y = 0; y < n - current_hook + 1; y++) {
-//             for (int r = 0; r < 4; r++) {
-//                 if (valid(grid, x, y, current_hook, r)) {
-//                     set_hook(grid, x, y, current_hook, r);
+//     for (int x = 0; x < n - h + 1; x++) {
+//         for (int y = 0; y < n - h + 1; y++) {
+//             for (int r = 0; r < 1; r++) {
+//                 if (valid(s, x, y, h, r)) {
+//                     set_hook(s[h-1], x, y, h, r);
 //
-//                     dfs(grid, current_hook - 1);
+//                     dfs(s, h - 1);
 //
-//                     unset_hook(grid, x, y, current_hook, r);
+//                     unset_hook(s[h-1], x, y, h, r);
 //                 }
 //
-//                 if (current_hook == 1) {
+//                 if (h == 1) {
 //                     break;
 //                 }
 //             }
@@ -178,32 +214,34 @@ void unset_hook(grid &grid, int x, int y, int hook_size, int rotation) {
 //     }
 // }
 
+void test(int h) {
+    bitboard bb;
+
+    // for (int x = 0; x < n - h + 1; x++) {
+    //     for (int y = 0; y < n - h + 1; y++) {
+    //         for (int r = 0; r < 1; r++) {
+    //             set_hook(bb, x, y, h, r);
+    //
+    //             print_bitboard(bb, "*");
+    //             cout << "x: " << x << endl;
+    //             cout << "y: " << y << endl;
+    //
+    //             unset_hook(bb, x, y, h, r);
+    //         }
+    //     }
+    // }
+    set_hook(bb, 0, 8, 1, 0);
+    print_bitboard(bb, "*");
+}
+
 int main() {
+    state s;
 
-    grid grid;
-    grid.first = 0ull;
-    grid.second = 0ull;
-
-    for (int h = 3; h < 4; h++) {
-        for (int x = 0; x < n - h + 1; x++) {
-            for (int y = 0; y < n - h + 1; y++) {
-                for (int r = 0; r < 4; r++) {
-                    set_hook(grid, x, y, h, r);
-
-                    print_grid(grid, "x");
-
-                    unset_hook(grid, x, y, h, r);
-
-                    if (h == 1)
-                        break;
-                }
-            }
-        }
-    }
+    // dfs(s, n);
+    test(1);
 
     // auto end = chrono::steady_clock::now();
     // chrono::duration<double> duration = end - start;
-    // fout << endl;
-    // fout << "Total Combinations: " << combos << endl;
-    // fout << "Execution time: " << round(duration.count() * 100) / 100 << "s" << endl;
+    // cout << "Total Combinations: " << combos << endl;
+    // cout << "Execution time: " << round(duration.count() * 100) / 100 << "s" << endl;
 }
