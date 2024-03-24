@@ -68,7 +68,7 @@ unordered_map<int, vector<int>> non_neighbors = {
 // positions corresponding to each node's index
 vector<pair<int, int>> positions = {
     {0, 0},
-    {0, 3},
+    {0, 2},
     {2, 1},
     {4, 1},
     {2, 3},
@@ -123,27 +123,32 @@ vector<vector<int>> get_perms(int n, int node_type) {
     return res;
 }
 
-pair<vector<vector<int>>, bool> valid_values(vector<vector<int>> &perms) {
+vector<vector<int>> valid_values(vector<vector<int>> &perms) {
     // map for counting values
     unordered_map<int, int> counts;
     // init vector to map out values
-    vector<vector<int>> values(n, vector<int>(4));
+    vector<vector<int>> values(n, vector<int>(n));
 
     for (int i = 0; i < perms.size(); i++)
         for (int direction = 0; direction < 4; direction++) {
-            // count the value
-            counts[perms[i][direction]]++;
+            int val = perms[i][direction];
 
-            if (perms[i][direction] != 0) {
-                values[positions[i].first + direction_offsets[i].first]
-                      [positions[i].second + direction_offsets[i].second] = perms[i][direction];
+            if (val != 0) {
+                // count the value
+                counts[val]++;
+
+                // If value already exists, return false
+                values[positions[i].first + direction_offsets[direction].first]
+                      [positions[i].second + direction_offsets[direction].second] = val;
             }
+            
         }
     for (auto pair : counts)
-        if (pair.second > pair.first && pair.first != 0)
-            return make_pair(values, false);
+        if (pair.second != pair.first && pair.first != 0)
+            values.clear();
+            return values;
 
-    return make_pair(values, true);
+    return values;
 }
 
 // pair<vector<vector<int>>, bool> valid_hooks(vector<vector<int>> &values) {
@@ -152,15 +157,8 @@ pair<vector<vector<int>>, bool> valid_values(vector<vector<int>> &perms) {
 
 bool valid(vector<vector<int>> &perms) {
     auto values_res = valid_values(perms);
-    if (!values_res.second) {
-        cout << "Invalid values:";
-        for (auto row : values_res.first) {
-            for (auto x : row) {
-                cout << x << " ";
-            }
-            cout << endl;
-        }
-        print(values_res.first);
+    if (values_res.size() != 0) {
+        print(values_res);
         return false;
     }
     // auto hooks_res = valid_hooks(values_res.first);
