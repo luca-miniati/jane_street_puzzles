@@ -1,247 +1,203 @@
 #include <iostream>
+#include <vector>
 #include <utility>
-#include <string>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
+#include <unordered_set>
+#include <unordered_map>
+
 using namespace std;
-using u64 = unsigned long long int;
-using bitboard = pair<u64, u64>;
-using state = bitboard[9];
 
-// ofstream cout("hooks.out");
-int combos = 0;
-auto start = chrono::steady_clock::now();
-
-const int n = 9;
-const u64 hooks[n][4][2] = {
-    {{1ull, 0ull}, {1ull, 0ull}, {1ull, 0ull}, {1ull, 0ull}},
-    {{515ull, 0ull}, {1027ull, 0ull}, {1537ull, 0ull}, {1538ull, 0ull}},
-    {{262663ull, 0ull}, {1050631ull, 0ull}, {1835521ull, 0ull}, {1837060ull, 0ull}},
-    {{134480399ull, 0ull}, {1075843087ull, 0ull}, {2013528577ull, 0ull}, {2015367176ull, 0ull}},
-    {{68853957151ull, 0ull}, {1101663313951ull, 0ull}, {2130438259201ull, 0ull}, {2132455464976ull, 0ull}},
-    {{35253226046015ull, 0ull}, {1128103233470527ull, 0ull}, {2216684295553537ull, 0ull}, {2218818768224288ull, 0ull}},
-    {{18049651735528063ull, 0ull}, {1155177711073788031ull, 0ull}, {2287863863930257921ull, 0ull}, {2290084817171152960ull, 0ull}},
-    {{9241421688590303999ull, 0ull}, {2310355422147576063ull, 64ull}, {9241421688590303745ull, 127ull}, {11533727459002351744ull, 127ull}},
-    {{9241421688590304255ull, 256ull}, {4620710844295152127ull, 65664ull}, {9241421688590303745ull, 130816ull}, {4620710844295151872ull, 130944ull}},
+const int n = 5;
+// vector<pair<int, int>> nodes = {
+//     {5, 4},
+//     {7, 3},
+//     {9, 4},
+//     {9, 4},
+//     {11, 4},
+//     {12, 4},
+//     {14, 4},
+//     {15, 3},
+//     {18, 3},
+//     {19, 4},
+//     {22, 3},
+//     {22, 4},
+//     {22, 4},
+//     {31, 4},
+// };
+//
+// KEY:
+// node[0] -> sum of adjacent values
+// node[1] -> 
+//      0: middle
+//      1: on top edge
+//      2: on right edge
+//      3: on bottom edge
+//      4: on left edge
+//      5: top left corner
+//      6: top right corner
+//      7: bottom right corner
+//      8: bottom left corner
+// 
+//      0
+//      ^
+//      |
+// 3 <- * -> 1
+//      |
+//      v
+//      2
+vector<pair<int, int>> nodes = {
+    {0, 5},
+    {8, 4},
+    {9, 0},
+    {7, 2},
+    {15, 0},
+    {12, 2},
+    {10, 8},
+};
+// non_neighbors[j] = {x, y} => x and y must be empty
+unordered_map<int, vector<int>> non_neighbors = {
+    {0, {}},
+    {1, {0}},
+    {2, {1}},
+    {3, {2}},
+    {4, {3}},
+    {5, {0, 3}},
+    {6, {0, 1}},
+    {7, {1, 2}},
+    {8, {2, 3}},
+};
+// positions corresponding to each node's index
+vector<pair<int, int>> positions = {
+    {0, 0},
+    {0, 3},
+    {2, 1},
+    {4, 1},
+    {2, 3},
+    {4, 3},
+    {0, 4},
+};
+// directions to offsets
+unordered_map<int, pair<int, int>> direction_offsets = {
+    {0, {0, -1}},
+    {1, {1, 0}},
+    {2, {0, 1}},
+    {3, {-1, 0}},
 };
 
-void print_bitboard(bitboard &bb, string val) {
-    cout << endl;
-
-    // first 64 bits of bitboard
-    for (int i = 0; i < 64; i++) {
-        if ((i % 9) == 0)
-            cout << "  ";
-
-        if (bb.first & (1ull << i)) {
-            cout << val << " ";
-        } else {
-            cout << ". ";
+void print(vector<vector<int>> &values) {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            cout << values[j][i] << " ";
         }
 
-        if ((i % 9) == 8)
-            cout << endl;
+        cout << endl;
     }
-
-    // last 17 bits of bitboard
-    for (int i = 0; i < 17; i++) {
-        if ((i % 9) == 8)
-            cout << "  ";
-
-        if (bb.second & (1ull << i)) {
-            cout << val << " ";
-        } else {
-            cout << ". ";
-        }
-
-        if ((i % 9) == 7)
-            cout << endl;
-    }
-
-    cout << "first: " << bb.first << endl;
-    cout << "second: " << bb.second << endl;
-    cout << endl;
 }
 
-void print_state(state &s) {
-    cout << endl;
+bool valid_perm(vector<int> &curr, int sum, int target, int node_type) {
+    for (int neighbor_index : non_neighbors[node_type])
+        if (curr[neighbor_index] != 0)
+            return false;
 
-    // first 64 bits of bitboard
-    for (int i = 0; i < 64; i++) {
-        if ((i % 9) == 0)
-            cout << "  ";
+    return target == sum;
+}
 
-        bool found = false;
-        for (int j = 0; j < 9; j++) {
-            if (s[j].first & (1ull << i)) {
-                cout << j + 1 << " ";
-                found = true;
+void get_perms_helper(vector<vector<int>> &res, vector<int> &curr, int target, int sum,
+        int node_type) {
+    if (curr.size() == 4) {
+        if (valid_perm(curr, sum, target, node_type))
+            res.push_back(curr);
+        return;
+    }
+
+    for (int i = 0; i < n + 1; ++i) {
+        curr.push_back(i);
+        get_perms_helper(res, curr, target, sum + i, node_type);
+        curr.pop_back();
+    }
+}
+
+vector<vector<int>> get_perms(int n, int node_type) {
+    vector<vector<int>> res;
+    vector<int> curr;
+    get_perms_helper(res, curr, n, 0, node_type);
+    return res;
+}
+
+pair<vector<vector<int>>, bool> valid_values(vector<vector<int>> &perms) {
+    // map for counting values
+    unordered_map<int, int> counts;
+    // init vector to map out values
+    vector<vector<int>> values(n, vector<int>(4));
+
+    for (int i = 0; i < perms.size(); i++)
+        for (int direction = 0; direction < 4; direction++) {
+            // count the value
+            counts[perms[i][direction]]++;
+
+            if (perms[i][direction] != 0) {
+                values[positions[i].first + direction_offsets[i].first]
+                      [positions[i].second + direction_offsets[i].second] = perms[i][direction];
             }
         }
-        if (!found)
-            cout << ". ";
+    for (auto pair : counts)
+        if (pair.second > pair.first && pair.first != 0)
+            return make_pair(values, false);
 
-        if ((i % 9) == 8)
-            cout << endl;
-    }
+    return make_pair(values, true);
+}
 
-    // last 17 bits of bitboard
-    for (int i = 0; i < 17; i++) {
-        if ((i % 9) == 8)
-            cout << "  ";
+// pair<vector<vector<int>>, bool> valid_hooks(vector<vector<int>> &values) {
+//
+// }
 
-        bool found = false;
-        for (int j = 0; j < 9; j++) {
-            if (s[j].second & (1ull << i)) {
-                cout << j + 1 << " ";
-                found = true;
+bool valid(vector<vector<int>> &perms) {
+    auto values_res = valid_values(perms);
+    if (!values_res.second) {
+        cout << "Invalid values:";
+        for (auto row : values_res.first) {
+            for (auto x : row) {
+                cout << x << " ";
             }
-        }
-        if (!found)
-            cout << ". ";
-
-        if ((i % 9) == 7)
             cout << endl;
+        }
+        print(values_res.first);
+        return false;
     }
-}
-
-int msb(u64 n) {
-    if (n == 0)
-        return 0;
-
-    int msb = 0;
-    while (n != 0) {
-        n >>= 1;
-        msb++;
-    }
-    return msb;
-}
-
-int bitstring_length(u64 n) {
-    if (n == 0)
-        return 1;
-    int length = 0;
-    while (n) {
-        length++;
-        n >>= 1;
-    }
-    return length;
-}
-
-void set_bits(bitboard &bb, u64 first, u64 second, int shift) {
-    // if there's no overflow for first
-    if (shift < 64)
-        bb.first |= first << shift;
-    // if we try to shift into index 64 or hibbher
-    if ((msb(first) + shift) > 64) {
-        cout << (first >> (shift - 64)) << endl;
-        bb.second |= (first >> (64 - shift));
-    }
-    bb.second |= second << shift;
-}
-
-void unset_bits(bitboard &bb, u64 first, u64 second, int shift) {
-    bb.first &= ~(first << shift);
-    // if we try to shift into index 64 or hibbher
-    if ((msb(first) + shift) > 64) {
-        bb.second &= ~(first >> (64 - shift));
-    }
-    bb.second &= ~(second << shift);
-}
-
-void set_hook(bitboard &bb, int x, int y, int h, int r) {
-    set_bits(
-        bb,
-        hooks[h-1][r][0],
-        hooks[h-1][r][1],
-        (y * 9) + x
-    );
-}
-
-void unset_hook(bitboard &bb, int x, int y, int h, int r) {
-    unset_bits(
-        bb,
-        hooks[h-1][r][0],
-        hooks[h-1][r][1],
-        (y * 9) + x
-    );
-}
-
-bool valid(state &s, int x, int y, int h, int r) {
-    // copy hook onto new bitboard
-    bitboard hook;
-
-    set_hook(hook, x, y, h, r);
-
-    // check bitboards before
-    for (int i = 0; i < h - 1; i++) {
-        if (hook.first & s[i].first || hook.second & s[i].second)
-            return false;
-    }
-    // check bitboards after
-    for (int i = h; i < 9; i++) {
-        if (hook.first & s[i].first || hook.second & s[i].second)
-            return false;
-    }
+    // auto hooks_res = valid_hooks(values_res.first);
+    // if (!hooks_res.second)
+    //     return false;
 
     return true;
 }
 
-// void dfs(state &s, int h) {
-//     if (h == 0) {
-//         // print_state(s);
-//         combos++;
-//         return;
-//     }
-//
-//     for (int x = 0; x < n - h + 1; x++) {
-//         for (int y = 0; y < n - h + 1; y++) {
-//             for (int r = 0; r < 1; r++) {
-//                 if (valid(s, x, y, h, r)) {
-//                     set_hook(s[h-1], x, y, h, r);
-//
-//                     dfs(s, h - 1);
-//
-//                     unset_hook(s[h-1], x, y, h, r);
-//                 }
-//
-//                 if (h == 1) {
-//                     break;
-//                 }
-//             }
-//         }
-//     }
-// }
+// how to check for validity of state
+//   1. check for correct number of values (e.g 3x3's, 4x4's)
+//   2. check for hook shape and homogenous values within hooks
+//   3. check for no unfilled 2x2 regions
+//   4. check for connectedness
 
-void test(int h) {
-    bitboard bb;
-
-    // for (int x = 0; x < n - h + 1; x++) {
-    //     for (int y = 0; y < n - h + 1; y++) {
-    //         for (int r = 0; r < 1; r++) {
-    //             set_hook(bb, x, y, h, r);
-    //
-    //             print_bitboard(bb, "*");
-    //             cout << "x: " << x << endl;
-    //             cout << "y: " << y << endl;
-    //
-    //             unset_hook(bb, x, y, h, r);
-    //         }
-    //     }
-    // }
-    set_hook(bb, 0, 8, 1, 0);
-    print_bitboard(bb, "*");
+void dfs(int node) {
+    if (node == nodes.size()) {
+        
+    }
 }
 
 int main() {
-    state s;
+    unsigned long long int count = 1;
+    vector<vector<int>> perms;
+    for (auto node : nodes) {
+        auto res = get_perms(node.first, node.second);
+        perms.push_back(res[0]);
+        // cout << node.first << ": " << res.size() << endl;
+        // count *= res.size();
+    }
 
-    // dfs(s, n);
-    test(1);
+    for (auto perm : perms) {
+        for (int val : perm)
+            cout << val;
+        cout << endl;
+    }
 
-    // auto end = chrono::steady_clock::now();
-    // chrono::duration<double> duration = end - start;
-    // cout << "Total Combinations: " << combos << endl;
-    // cout << "Execution time: " << round(duration.count() * 100) / 100 << "s" << endl;
+    cout << "valid:" << endl;
+    cout << valid(perms) << endl;
 }
