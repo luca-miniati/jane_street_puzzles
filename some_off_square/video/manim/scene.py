@@ -2,13 +2,11 @@ from manim import (
     Scene, utils,  # Window
     Circle, Square, Dot,  # Shapes
     Tex,  # Text
-    FadeIn,  # Animations
+    FadeOut, Transform, Create, FadeIn,  # Animations
     ComplexValueTracker, Difference,  # Utils
-    ORIGIN, WHITE  # Constants
+    ORIGIN, WHITE, GREEN, RIGHT, LEFT, UP, DOWN  # Constants
 )
 from math import sqrt, pow
-
-PURPLE = utils.color.X11.MEDIUMSLATEBLUE
 
 
 def radius(p1, p2):
@@ -29,49 +27,60 @@ def points_to_circle(p1, p2):
 
 
 class SomeOffSquare(Scene):
+    def make_config(self, p1_coords, p2_coords, square=None, circle=False):
+        p1 = Dot(p1_coords)
+        p2 = Dot(p2_coords)
+        if circle and square:
+            circle = points_to_circle(p1, p2)
+            off_square = Difference(
+                    circle, square, color=GREEN, fill_opacity=0.5)
+            self.play(FadeIn(p1), FadeIn(p2), Create(circle),
+                      FadeIn(off_square))
+            self.wait(0.5)
+            self.play(FadeOut(p1), FadeOut(p2), FadeOut(circle),
+                      FadeOut(off_square))
+            return p1, p2, circle, off_square
+        else:
+            self.play(FadeIn(p1), FadeIn(p2))
+            self.wait(0.3)
+            self.play(FadeOut(p1), FadeOut(p2))
+            return p1, p2
+
     def construct(self):
-        tex = Tex(r"\LaTeX", font_size=144)
-        self.add(tex)
-
-        # Set up square, points, circle
+        self.wait(2.0)
         square = Square(5.0)
-        p1, p2 = Dot(ORIGIN), Dot([0.0, 1.0, 0.0])
-        circle = points_to_circle(p1, p2)
-        off_square = Difference(circle, square, color=PURPLE, fill_opacity=0.5)
-        p1_tracker = ComplexValueTracker(0 + 0j)
-        p2_tracker = ComplexValueTracker(0 + 0j)
-        p1.add_updater(lambda z: z.move_to(p1_tracker.points))
-        p2.add_updater(lambda z: z.move_to(p2_tracker.points))
-        circle.add_updater(lambda z: z.become(points_to_circle(p1, p2)))
-        off_square.add_updater(lambda z: z.become(
-            Difference(circle, square, color=PURPLE,
-                       fill_opacity=0.5)))
-        self.play(FadeIn(square), FadeIn(p1), FadeIn(p2), FadeIn(circle))
-        self.add(off_square)
+        self.play(Create(square))
+        self.wait(2.0)
 
-        # Move the points around
-        points = [
-            (p1_tracker, (1 + 0j)),
-            (p2_tracker, (5/2 + 2j)),
-            (p2_tracker, (-2/5 + 2j)),
-            (p1_tracker, (-2/5 + 5/2j)),
-            (p2_tracker, (7/3 + -5/3j)),
-            (p1_tracker, (1/2 + -5/2j)),
-            (p2_tracker, (-2/5 + 2j)),
-            (p1_tracker, (-2/5 + -2j)),
-            (p2_tracker, (2 + 1/2j)),
-        ]
-        for tracker, point in points:
-            self.play(tracker.animate.set_value(point))
-            self.wait(0.75)
-
-        # Slide over
-        self.play(
-            square.animate.shift([-2, 0, 0]),
-            p1_tracker.animate.set_value(
-                -2.4 - 2j
-            ),
-            p2_tracker.animate.set_value(
-                0 - 0.5j
-            )
+        self.make_config(
+            [0.3, -0.2, 0.0], [1.0, 0.1, 0.0]
         )
+        self.make_config(
+            [-1.2, 2.0, 0.0], [-0.3, 0.0, 0.0]
+        )
+        self.make_config(
+            [0.1, -0.1, 0.0], [-0.8, -0.9, 0.0]
+        )
+        self.make_config(
+            [0.0, 2.3, 0.0], [-0.2, -0.4, 0.0], square, True
+        )
+        self.make_config(
+            [0.7, 0.8, 0.0], [-0.3, -0.4, 0.0], square, True
+        )
+        self.make_config(
+            [-0.3, -1.2, 0.0], [2.0, 0.0, 0.0], square, True
+        )
+        self.make_config(
+            [-0.1, 0.6, 0.0], [-2.9, -0.8, 0.0], square, True
+        )
+
+        p1 = Dot([2.1, -0.5, 0.0])
+        p2 = Dot([0.3, -0.4, 0.0])
+        circle = points_to_circle(p1, p2)
+        off_square = Difference(
+                circle, square, color=GREEN, fill_opacity=0.5)
+        self.play(FadeIn(p1), FadeIn(p2), Create(circle),
+                  FadeIn(off_square))
+        self.wait(0.5)
+
+        self.play(p1.shift(LEFT))

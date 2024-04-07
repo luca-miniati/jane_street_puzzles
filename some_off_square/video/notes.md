@@ -60,14 +60,26 @@ do 2 things. First, we'll use the Pythagorean Theorem to substitute
                    /  2    2 
                  \/  w  + h    -> d
 
+Now, let's just do the same thing for the bottom integral.
+
 Second, we'll substitute 1 for L. It should be intuitively clear that the choice of what to make L
 really doesn't matter as long as it's consistent. Our final answer will be the same for any L we
 pick.
+
+For this integral, we're computing the total number of ways to get a circle. Thus, for our bounds
+of integration, we can pick any values of x and y in the square. So, we can just integrate both x and y
+from zero to one.
 
 Now that we have a function of 2 variables, let's try to define our bounds of integration. Consider
 how far our w and h can vary. The closest the two points can be is if they are right on top of each  <-- Put points in middle of circle,
 other, and the farthest they can be is at opposite corners. Thus, our bounds of integration for          and have a "triangle" showing w
 both are 0 to 1.                                                                                         and h. (Also put red flags on screen)
+
+if we did do this, we would get a circle whose diameter is longer than the side length of our
+square. since we're trying to compute the area of wiggle room of a circle inside the square, it only
+makes sense to consider circles that fit inside the square. mathematically, this situation can be 
+described by this inequality, constraining x and y to values that fit in the square. solving for y
+gives us the upper bound of integration, and the lower bound is just zero.
 
 ## Solve the integral
 To solve this integral, we convert to polar coordinates, and get a final answer of ____. To verify
@@ -100,7 +112,7 @@ values we do need to check, we set up the following inequality and solve. We get
 
 ## Final Answer
 Now, when we plug into our integral, we should get a different answer.
-1 - pi/6. How beautiful.
+1 - pi/6. How beautiful
 
 ## 5pi/6
 Now, funny story, when I submitted this problem, I tried to be smart and simplify my answer. I
